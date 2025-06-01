@@ -44,7 +44,7 @@ services:
 
   # Kong Database Migration
   kong-migration:
-    image: kong:3.4-alpine
+    image: kong:3.9.0
     container_name: kong_migration_prod
     command: "kong migrations bootstrap"
     environment:
@@ -62,7 +62,7 @@ services:
 
   # Kong Gateway
   kong:
-    image: kong:3.4-alpine
+    image: kong:3.9.0
     container_name: kong_gateway_prod
     environment:
       KONG_DATABASE: postgres
