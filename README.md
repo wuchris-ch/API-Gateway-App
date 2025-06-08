@@ -5,29 +5,55 @@ A comprehensive, production-ready API Gateway demonstration built with modern te
 ## 🏗️ Architecture Overview
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │   API Gateway   │    │   Backend API   │
-│   (React/TS)    │◄──►│   (Rust)        │◄──►│   (FastAPI)     │
-│   Port: 3000    │    │   Port: 8080    │    │   Port: 8000    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         │              ┌─────────────────┐              │
-         │              │   Kong Gateway  │              │
-         │              │   Port: 8000    │              │
-         │              └─────────────────┘              │
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌─────────────────┐
-                    │   PostgreSQL    │
-                    │   Port: 5432    │
-                    └─────────────────┘
-                                 │
-                    ┌─────────────────┐
-                    │     Redis       │
-                    │   Port: 6379    │
-                    └─────────────────┘
+                                    ┌─────────────────┐
+                                    │   Frontend      │
+                                    │   (React/TS)    │
+                                    │   Port: 3000    │
+                                    └─────────┬───────┘
+                                              │
+                                    ┌─────────▼───────┐
+                                    │  Rust Gateway   │
+                                    │  (Rate Limit,   │
+                                    │   Load Balance) │
+                                    │   Port: 8080    │
+                                    └─────────┬───────┘
+                                              │
+                            ┌─────────────────┼─────────────────┐
+                            │                 │                 │
+                  ┌─────────▼───────┐        │        ┌─────────▼───────┐
+                  │  Kong Gateway   │        │        │   Backend API   │
+                  │  (Additional    │        │        │   (FastAPI)     │
+                  │   Management)   │        │        │   Port: 8000    │
+                  │   Proxy: 8000*  │        │        │   (conflicts!)  │
+                  │   Admin: 8001   │        │        └─────────┬───────┘
+                  │   Manager: 8002 │        │                  │
+                  └─────────────────┘        │                  │
+                                             │                  │
+                  ┌─────────────────────────────────────────────┴───────┐
+                  │                                                     │
+        ┌─────────▼───────┐    ┌─────────────────┐    ┌─────────▼───────┐
+        │   Keycloak      │    │     Redis       │    │   PostgreSQL    │
+        │ (Auth Server)   │    │   (Cache &      │    │ (Main Database) │
+        │   Port: 8180    │    │  Rate Limiting) │    │   Port: 5432    │
+        └─────────────────┘    │   Port: 6379    │    └─────────────────┘
+                               └─────────────────┘              │
+                                                                │
+                                                   ┌─────────▼───────┐
+                                                   │ Kong PostgreSQL │
+                                                   │ (Kong Database) │
+                                                   │   Internal      │
+                                                   └─────────────────┘
 ```
+
+**Note**: *There's a port conflict between Kong Proxy (8000) and Backend API (8000) that needs resolution.*
+
+### Request Flow
+1. **Frontend** → **Rust Gateway** (main entry point)
+2. **Rust Gateway** → **Backend API** (for business logic)
+3. **Kong Gateway** → **Backend API** (alternative management layer)
+4. **Authentication**: **Keycloak** handles OAuth/OIDC
+5. **Caching**: **Redis** for sessions and rate limiting
+6. **Data**: **PostgreSQL** for application data, separate **Kong DB** for Kong config
 
 ## 🚀 Features
 
@@ -67,12 +93,24 @@ A comprehensive, production-ready API Gateway demonstration built with modern te
 - **Axios** for HTTP requests
 - **Nginx** for production serving
 
-### API Gateway (Rust)
+### API Gateways (Dual Setup)
+**Primary Rust Gateway:**
 - **Axum** web framework
 - **Tokio** async runtime
 - **Redis** for rate limiting and caching
 - **PostgreSQL** for configuration storage
 - **Prometheus** metrics collection
+
+**Kong Gateway (Additional Management):**
+- **Kong 3.9** enterprise features
+- **Admin API** for configuration
+- **Kong Manager** web UI
+- **PostgreSQL** dedicated database
+
+### Authentication
+- **Keycloak 22.0** OAuth/OIDC server
+- **JWT** token-based authentication
+- **Role-based access control**
 
 ### Backend API (Python)
 - **FastAPI** web framework
@@ -80,12 +118,10 @@ A comprehensive, production-ready API Gateway demonstration built with modern te
 - **PostgreSQL** database
 - **Redis** caching
 - **Pydantic** data validation
-- **JWT** authentication
 
 ### Infrastructure
 - **Docker & Docker Compose** for containerization
-- **Kong Gateway** for additional API management
-- **PostgreSQL** for data persistence
+- **PostgreSQL** (2 instances: app data + Kong config)
 - **Redis** for caching and rate limiting
 - **Nginx** for frontend serving
 
@@ -125,10 +161,17 @@ make start
 
 ### 4. Access the Application
 - **Frontend**: http://localhost:3000
-- **API Gateway**: http://localhost:8080
-- **Backend API**: http://localhost:8000
-- **Kong Admin**: http://localhost:8001
-- **Kong Manager**: http://localhost:8002
+- **Rust API Gateway**: http://localhost:8080 (main entry point)
+- **Backend API**: http://localhost:8000 ⚠️ (conflicts with Kong Proxy)
+- **Kong Gateway**:
+  - **Proxy**: http://localhost:8000 ⚠️ (conflicts with Backend API)
+  - **Admin API**: http://localhost:8001
+  - **Manager UI**: http://localhost:8002
+- **Keycloak Auth Server**: http://localhost:8180
+- **PostgreSQL**: localhost:5432
+- **Redis**: localhost:6379
+
+⚠️ **Port Conflict Warning**: Both Kong Proxy and Backend API are configured for port 8000. This will cause startup issues. Consider changing one of them to a different port (e.g., Backend API to 8003).
 
 ### 5. Login Credentials
 ```
@@ -315,6 +358,22 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🆘 Troubleshooting
 
 ### Common Issues
+
+**🚨 Port 8000 Conflict (Critical)**
+The most common issue is that both Kong Proxy and Backend API are configured for port 8000:
+
+```bash
+# Check which service is using port 8000
+lsof -i :8000
+
+# Quick fix: Change backend to port 8003
+# Edit docker-compose.yml, change backend ports from "8000:8000" to "8003:8000"
+# Then update Rust Gateway config to point to "http://backend:8000" (internal) 
+# External access would be http://localhost:8003
+
+# Alternative: Change Kong proxy port
+# Edit docker-compose.yml, change kong ports from "8000:8000" to "8090:8000"
+```
 
 **Port Conflicts**
 ```bash

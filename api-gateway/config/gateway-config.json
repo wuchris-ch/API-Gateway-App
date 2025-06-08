@@ -1,0 +1,51 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8080
+  },
+  "routes": [
+    {
+      "path": "/api/v1/*",
+      "method": null,
+      "backend": "backend_api",
+      "load_balancing": "round_robin",
+      "rate_limit": 100,
+      "auth_required": true,
+      "timeout_ms": 30000
+    }
+  ],
+  "backends": {
+    "backend_api": {
+      "name": "Backend API",
+      "servers": ["http://backend:8000"],
+      "health_check": {
+        "enabled": true,
+        "path": "/health",
+        "interval_seconds": 30,
+        "timeout_seconds": 5,
+        "healthy_threshold": 2,
+        "unhealthy_threshold": 3
+      },
+      "circuit_breaker": {
+        "enabled": true,
+        "failure_threshold": 5,
+        "recovery_timeout_seconds": 60
+      }
+    }
+  },
+  "rate_limiting": {
+    "enabled": true,
+    "default_requests_per_minute": 60,
+    "burst_size": 10,
+    "storage": "redis"
+  },
+  "auth": {
+    "enabled": true,
+    "api_key_header": "X-API-Key",
+    "bypass_paths": ["/health", "/metrics", "/auth/login", "/public/*"]
+  },
+  "redis": {
+    "url": "redis://redis:6379",
+    "pool_size": 10
+  }
+} 

@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: api_gateway
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
     ports:
       - "5432:5432"
     volumes:
@@ -17,6 +17,8 @@ services:
     networks:
       - api_gateway_network_prod
     restart: unless-stopped
+    secrets:
+      - postgres_password
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -30,12 +32,14 @@ services:
     environment:
       POSTGRES_DB: kong
       POSTGRES_USER: kong
-      POSTGRES_PASSWORD: ${KONG_DB_PASSWORD:-kong}
+      POSTGRES_PASSWORD_FILE: /run/secrets/kong_db_password
     volumes:
       - kong_data_prod:/var/lib/postgresql/data
     networks:
       - api_gateway_network_prod
     restart: unless-stopped
+    secrets:
+      - kong_db_password
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U kong"]
       interval: 10s
@@ -52,13 +56,15 @@ services:
       KONG_PG_HOST: kong-database
       KONG_PG_DATABASE: kong
       KONG_PG_USER: kong
-      KONG_PG_PASSWORD: ${KONG_DB_PASSWORD:-kong}
+      KONG_PG_PASSWORD_FILE: /run/secrets/kong_db_password
     networks:
       - api_gateway_network_prod
     depends_on:
       kong-database:
         condition: service_healthy
     restart: on-failure
+    secrets:
+      - kong_db_password
 
   # Kong Gateway
   kong:
@@ -69,7 +75,7 @@ services:
       KONG_PG_HOST: kong-database
       KONG_PG_DATABASE: kong
       KONG_PG_USER: kong
-      KONG_PG_PASSWORD: ${KONG_DB_PASSWORD:-kong}
+      KONG_PG_PASSWORD_FILE: /run/secrets/kong_db_password
       KONG_PROXY_ACCESS_LOG: /dev/stdout
       KONG_ADMIN_ACCESS_LOG: /dev/stdout
       KONG_PROXY_ERROR_LOG: /dev/stderr
@@ -88,6 +94,8 @@ services:
       kong-migration:
         condition: service_completed_successfully
     restart: unless-stopped
+    secrets:
+      - kong_db_password
     healthcheck:
       test: ["CMD", "kong", "health"]
       interval: 10s
@@ -116,9 +124,13 @@ services:
       dockerfile: Dockerfile
     container_name: api_gateway_backend_prod
     environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/api_gateway
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: api_gateway
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD_FILE: /run/secrets/postgres_password
       REDIS_URL: redis://redis:6379
-      SECRET_KEY: ${JWT_SECRET_KEY:-your-secret-key-change-in-production}
+      SECRET_KEY_FILE: /run/secrets/jwt_secret_key
     ports:
       - "8000:8000"
     networks:
@@ -129,6 +141,9 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    secrets:
+      - postgres_password
+      - jwt_secret_key
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -142,63 +157,14 @@ services:
       dockerfile: Dockerfile
     container_name: api_gateway_rust_prod
     environment:
-      GATEWAY_CONFIG: |
-        {
-          "server": {
-            "host": "0.0.0.0",
-            "port": 8080
-          },
-          "routes": [
-            {
-              "path": "/api/v1/*",
-              "method": null,
-              "backend": "backend_api",
-              "load_balancing": "round_robin",
-              "rate_limit": 100,
-              "auth_required": true,
-              "timeout_ms": 30000
-            }
-          ],
-          "backends": {
-            "backend_api": {
-              "name": "Backend API",
-              "servers": ["http://backend:8000"],
-              "health_check": {
-                "enabled": true,
-                "path": "/health",
-                "interval_seconds": 30,
-                "timeout_seconds": 5,
-                "healthy_threshold": 2,
-                "unhealthy_threshold": 3
-              },
-              "circuit_breaker": {
-                "enabled": true,
-                "failure_threshold": 5,
-                "recovery_timeout_seconds": 60
-              }
-            }
-          },
-          "rate_limiting": {
-            "enabled": true,
-            "default_requests_per_minute": 60,
-            "burst_size": 10,
-            "storage": "redis"
-          },
-          "auth": {
-            "enabled": true,
-            "jwt_secret": "${JWT_SECRET_KEY:-your-jwt-secret-key}",
-            "api_key_header": "X-API-Key",
-            "bypass_paths": ["/health", "/metrics", "/auth/login", "/public/*"]
-          },
-          "redis": {
-            "url": "redis://redis:6379",
-            "pool_size": 10
-          },
-          "database": {
-            "url": "postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/api_gateway",
-            "max_connections": 10
-          }
-        }
+      GATEWAY_CONFIG_FILE: /app/config/gateway-config.json
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: api_gateway
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD_FILE: /run/secrets/postgres_password
+      JWT_SECRET_FILE: /run/secrets/jwt_secret_key
+      REDIS_URL: redis://redis:6379
     ports:
       - "8080:8080"
     networks:
@@ -209,6 +175,11 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    secrets:
+      - postgres_password
+      - jwt_secret_key
+    volumes:
+      - ./api-gateway/config:/app/config:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -221,23 +192,32 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: api_gateway_frontend_prod
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080
+      VITE_KEYCLOAK_URL: http://localhost:8180
     ports:
       - "3000:80"
     networks:
       - api_gateway_network_prod
     depends_on:
-      - api-gateway
+      api-gateway:
+        condition: service_healthy
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
 volumes:
   postgres_data_prod:
+    driver: local
   kong_data_prod:
+    driver: local
 
 networks:
   api_gateway_network_prod:
-    driver: bridge 
+    driver: bridge
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  kong_db_password:
+    file: ./secrets/kong_db_password.txt
+  jwt_secret_key:
+    file: ./secrets/jwt_secret_key.txt 

@@ -4,12 +4,12 @@ FROM rust:1.75 as builder
 WORKDIR /app
 
 # Copy Cargo files
-COPY Cargo.toml Cargo.lock ./
+COPY Cargo.toml ./
 
 # Create a dummy main.rs to build dependencies
 RUN mkdir src && echo "fn main() {}" > src/main.rs
 
-# Build dependencies (this will be cached)
+# Build dependencies (this will generate Cargo.lock and cache dependencies)
 RUN cargo build --release && rm -rf src
 
 # Copy source code
