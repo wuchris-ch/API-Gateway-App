@@ -2,6 +2,16 @@
 
 This repository demonstrates two different approaches to building a production-ready API Gateway application. Each approach is implemented in a separate branch to avoid confusion and allow you to explore each independently.
 
+## 🌲 Repository Structure
+
+This repository uses a **multi-branch architecture** where each branch represents a complete, independent implementation:
+
+- **`main`** - Overview and documentation (you are here)
+- **`kong-gateway`** - Complete Kong Gateway implementation
+- **`rust-gateway`** - Complete Rust Gateway implementation
+
+> **Important**: These branches are **independent implementations**, not feature branches meant to be merged. Choose one approach and work within that branch.
+
 ## 🌟 Choose Your Gateway Approach
 
 ### 🦀 Rust Gateway (Custom Implementation)
@@ -107,11 +117,15 @@ Both approaches share the same backend infrastructure:
 
 **For High Performance & Custom Logic:**
 ```bash
+git clone https://github.com/wuchris-ch/API-Gateway-App.git
+cd API-Gateway-App
 git checkout rust-gateway
 ```
 
 **For Enterprise & Quick Setup:**
 ```bash
+git clone https://github.com/wuchris-ch/API-Gateway-App.git
+cd API-Gateway-App
 git checkout kong-gateway
 ```
 
@@ -201,7 +215,9 @@ Each branch contains comprehensive documentation:
 3. Create a feature branch from your chosen approach
 4. Make your changes
 5. Add tests
-6. Submit a pull request
+6. Submit a pull request **to the same branch** (not to main)
+
+> **Note**: PRs should target the specific implementation branch (`kong-gateway` or `rust-gateway`), not the main branch.
 
 ## 📋 Use Cases
 
