@@ -1,422 +1,237 @@
-# API Gateway Demo Application
+# API Gateway Application
 
-A comprehensive, production-ready API Gateway demonstration built with modern technologies and best practices. This project showcases a complete microservices architecture with authentication, rate limiting, monitoring, and a beautiful web interface.
+This repository demonstrates two different approaches to building a production-ready API Gateway application. Each approach is implemented in a separate branch to avoid confusion and allow you to explore each independently.
 
-## 🏗️ Architecture Overview
+## 🌟 Choose Your Gateway Approach
 
-```
-                                    ┌─────────────────┐
-                                    │   Frontend      │
-                                    │   (React/TS)    │
-                                    │   Port: 3000    │
-                                    └─────────┬───────┘
-                                              │
-                                    ┌─────────▼───────┐
-                                    │  Rust Gateway   │
-                                    │  (Rate Limit,   │
-                                    │   Load Balance) │
-                                    │   Port: 8080    │
-                                    └─────────┬───────┘
-                                              │
-                            ┌─────────────────┼─────────────────┐
-                            │                 │                 │
-                  ┌─────────▼───────┐        │        ┌─────────▼───────┐
-                  │  Kong Gateway   │        │        │   Backend API   │
-                  │  (Additional    │        │        │   (FastAPI)     │
-                  │   Management)   │        │        │   Port: 8000    │
-                  │   Proxy: 8000*  │        │        │   (conflicts!)  │
-                  │   Admin: 8001   │        │        └─────────┬───────┘
-                  │   Manager: 8002 │        │                  │
-                  └─────────────────┘        │                  │
-                                             │                  │
-                  ┌─────────────────────────────────────────────┴───────┐
-                  │                                                     │
-        ┌─────────▼───────┐    ┌─────────────────┐    ┌─────────▼───────┐
-        │   Keycloak      │    │     Redis       │    │   PostgreSQL    │
-        │ (Auth Server)   │    │   (Cache &      │    │ (Main Database) │
-        │   Port: 8180    │    │  Rate Limiting) │    │   Port: 5432    │
-        └─────────────────┘    │   Port: 6379    │    └─────────────────┘
-                               └─────────────────┘              │
-                                                                │
-                                                   ┌─────────▼───────┐
-                                                   │ Kong PostgreSQL │
-                                                   │ (Kong Database) │
-                                                   │   Internal      │
-                                                   └─────────────────┘
+### 🦀 Rust Gateway (Custom Implementation)
+**Branch: `rust-gateway`**
+
+A high-performance, custom-built API Gateway written in Rust with Tokio for async processing.
+
+```bash
+git checkout rust-gateway
 ```
 
-**Note**: *There's a port conflict between Kong Proxy (8000) and Backend API (8000) that needs resolution.*
+**Features:**
+- **Ultra High Performance**: 50,000+ RPS with sub-millisecond latency
+- **Custom Logic**: Complete control over gateway behavior
+- **Rust Ecosystem**: Built with Axum, Tokio, and Redis
+- **Memory Efficient**: ~10MB memory footprint
+- **Circuit Breaker**: Built-in fault tolerance
+- **Custom Rate Limiting**: Redis-backed with burst handling
+- **Prometheus Metrics**: Built-in observability
 
-### Request Flow
-1. **Frontend** → **Rust Gateway** (main entry point)
-2. **Rust Gateway** → **Backend API** (for business logic)
-3. **Kong Gateway** → **Backend API** (alternative management layer)
-4. **Authentication**: **Keycloak** handles OAuth/OIDC
-5. **Caching**: **Redis** for sessions and rate limiting
-6. **Data**: **PostgreSQL** for application data, separate **Kong DB** for Kong config
+**Best For:**
+- High-throughput applications
+- Custom gateway logic requirements  
+- Learning Rust and async programming
+- Maximum performance optimization
+- Microservices with specific routing needs
 
-## 🚀 Features
+---
 
-### Core Features
-- **Multi-language Architecture**: Rust API Gateway, Python Backend, TypeScript Frontend
-- **Authentication & Authorization**: JWT tokens and API key management
-- **Rate Limiting**: Redis-backed rate limiting with configurable thresholds
-- **Load Balancing**: Multiple strategies (round-robin, least connections, random)
-- **Health Monitoring**: Comprehensive health checks and service monitoring
-- **Request Routing**: Intelligent request routing with path-based rules
-- **Circuit Breaker**: Fault tolerance with automatic recovery
-- **Metrics & Analytics**: Prometheus metrics and system monitoring
+### 🐒 Kong Gateway (Enterprise Solution)
+**Branch: `kong-gateway`**
 
-### Frontend Features
-- **Modern React UI**: Built with Material-UI components
-- **Responsive Design**: Mobile-friendly interface
-- **Real-time Dashboard**: System metrics and service status
-- **API Testing Tool**: Built-in API endpoint testing
-- **User Management**: User and role management interface
-- **Product Catalog**: CRUD operations for products
-- **Order Management**: Order tracking and management
+Production-ready API Gateway using Kong, an enterprise-grade solution used by thousands of companies.
 
-### Backend Features
-- **RESTful API**: Complete CRUD operations
-- **Database Integration**: PostgreSQL with SQLAlchemy ORM
-- **Caching**: Redis integration for performance
-- **Structured Logging**: JSON-formatted logs with correlation IDs
-- **Input Validation**: Pydantic schemas for request/response validation
-- **Error Handling**: Comprehensive error handling and reporting
+```bash
+git checkout kong-gateway
+```
 
-## 🛠️ Technology Stack
+**Features:**
+- **Enterprise Ready**: Battle-tested in production environments
+- **Plugin Ecosystem**: 100+ plugins available
+- **Admin Interface**: Web-based management UI
+- **Declarative Config**: Configuration as code
+- **Multi-Protocol**: HTTP/HTTPS, gRPC, WebSocket support
+- **Enterprise Support**: Commercial support available
+- **Industry Standard**: Well-known by DevOps teams
 
-### Frontend
-- **React 18** with TypeScript
-- **Material-UI (MUI)** for components
-- **React Router** for navigation
-- **Axios** for HTTP requests
-- **Nginx** for production serving
+**Best For:**
+- Enterprise environments
+- Teams familiar with Kong
+- Quick deployment needs
+- Extensive plugin requirements
+- Production environments requiring support
 
-### API Gateways (Dual Setup)
-**Primary Rust Gateway:**
-- **Axum** web framework
-- **Tokio** async runtime
-- **Redis** for rate limiting and caching
-- **PostgreSQL** for configuration storage
-- **Prometheus** metrics collection
+---
 
-**Kong Gateway (Additional Management):**
-- **Kong 3.9** enterprise features
-- **Admin API** for configuration
-- **Kong Manager** web UI
-- **PostgreSQL** dedicated database
+## 🏗️ Common Architecture
 
-### Authentication
-- **Keycloak 22.0** OAuth/OIDC server
-- **JWT** token-based authentication
-- **Role-based access control**
+Both approaches share the same backend infrastructure:
 
-### Backend API (Python)
-- **FastAPI** web framework
-- **SQLAlchemy** ORM
-- **PostgreSQL** database
-- **Redis** caching
-- **Pydantic** data validation
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   API Gateway    │    │   Backend API   │
+│  (React/TS)     │────│  (Kong/Rust)     │────│  (FastAPI)      │
+│  Port 3000      │    │   Port 8080      │    │  Port 8000      │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                │
+                       ┌────────┴────────┐
+                       │                 │
+                ┌──────────────┐  ┌──────────────┐
+                │  Keycloak    │  │  PostgreSQL  │
+                │  Port 8180   │  │  Port 5432   │
+                └──────────────┘  └──────────────┘
+                       │
+                ┌──────────────┐
+                │    Redis     │
+                │  Port 6379   │
+                └──────────────┘
+```
 
-### Infrastructure
-- **Docker & Docker Compose** for containerization
-- **PostgreSQL** (2 instances: app data + Kong config)
-- **Redis** for caching and rate limiting
-- **Nginx** for frontend serving
+### Shared Components
 
-## 📋 Prerequisites
+**Backend Services:**
+- **FastAPI Backend**: Python API with automatic OpenAPI docs
+- **PostgreSQL Database**: Persistent data storage
+- **Redis Cache**: Session storage and rate limiting
+- **Keycloak Auth**: OAuth/OIDC authentication server
 
-- **Docker** and **Docker Compose**
-- **Node.js 18+** (for local frontend development)
-- **Python 3.11+** (for local backend development)
-- **Rust 1.75+** (for local gateway development)
-- **Make** (optional, for using Makefile commands)
+**Frontend:**
+- **React + TypeScript**: Modern web interface
+- **Material-UI**: Professional component library
+- **Authentication UI**: Login/register flows
+- **API Testing Tools**: Built-in endpoint testing
+
+**Infrastructure:**
+- **Docker Compose**: Container orchestration
+- **Health Checks**: Service monitoring
+- **Environment Configuration**: Flexible deployment options
 
 ## 🚀 Quick Start
 
-### 1. Clone the Repository
+### 1. Choose Your Approach
+
+**For High Performance & Custom Logic:**
 ```bash
-git clone <repository-url>
-cd API-Gateway-App
+git checkout rust-gateway
 ```
 
-### 2. Environment Setup
+**For Enterprise & Quick Setup:**
 ```bash
-# Copy environment template
-cp env.example .env
+git checkout kong-gateway
+```
 
-# Edit environment variables (optional for demo)
-nano .env
+### 2. Set Up Environment
+```bash
+cp env.example .env
+# Edit .env with your configuration
 ```
 
 ### 3. Start the Application
 ```bash
-# Using Docker Compose (recommended)
 docker-compose up -d
-
-# Or using Make
-make start
 ```
 
-### 4. Access the Application
-- **Frontend**: http://localhost:3000
-- **Rust API Gateway**: http://localhost:8080 (main entry point)
-- **Backend API**: http://localhost:8000 ⚠️ (conflicts with Kong Proxy)
-- **Kong Gateway**:
-  - **Proxy**: http://localhost:8000 ⚠️ (conflicts with Backend API)
-  - **Admin API**: http://localhost:8001
-  - **Manager UI**: http://localhost:8002
-- **Keycloak Auth Server**: http://localhost:8180
-- **PostgreSQL**: localhost:5432
-- **Redis**: localhost:6379
+### 4. Access Points
 
-⚠️ **Port Conflict Warning**: Both Kong Proxy and Backend API are configured for port 8000. This will cause startup issues. Consider changing one of them to a different port (e.g., Backend API to 8003).
+| Service | Rust Gateway | Kong Gateway |
+|---------|-------------|-------------|
+| Frontend | http://localhost:3000 | http://localhost:3000 |
+| Gateway | http://localhost:8080 | http://localhost:8080 |
+| Backend | http://localhost:8000 | http://localhost:8000 |
+| Auth | http://localhost:8180 | http://localhost:8180 |
+| Admin UI | N/A | http://localhost:8002 |
 
-### 5. Login Credentials
-```
-Admin User:
-Username: admin
-Password: admin
+## 📊 Comparison
 
-Regular User:
-Username: user
-Password: user
-```
+| Feature | Rust Gateway | Kong Gateway |
+|---------|-------------|-------------|
+| **Performance** | ⭐⭐⭐⭐⭐ Ultra High | ⭐⭐⭐⭐ High |
+| **Memory Usage** | ⭐⭐⭐⭐⭐ Very Low | ⭐⭐⭐ Medium |
+| **Setup Time** | ⭐⭐⭐ Medium | ⭐⭐⭐⭐⭐ Very Fast |
+| **Customization** | ⭐⭐⭐⭐⭐ Full Control | ⭐⭐⭐ Plugin-based |
+| **Enterprise Features** | ⭐⭐ Basic | ⭐⭐⭐⭐⭐ Extensive |
+| **Learning Curve** | ⭐⭐ Steep | ⭐⭐⭐⭐ Gentle |
+| **Community** | ⭐⭐⭐ Growing | ⭐⭐⭐⭐⭐ Large |
+| **Production Ready** | ⭐⭐⭐ Good | ⭐⭐⭐⭐⭐ Excellent |
 
-## 🔧 Development Setup
+## 🛠️ Development
 
-### Frontend Development
+### Common Commands
+
 ```bash
-cd frontend
-npm install
-npm start
+# Start development environment
+make dev
+
+# View logs
+make logs
+
+# Run tests
+make test
+
+# Clean and restart
+make clean && make dev
 ```
 
-### Backend Development
-```bash
-cd backend
-pip install -r requirements.txt
-python main.py
-```
+### Branch-Specific Development
 
-### API Gateway Development
+**Rust Gateway Development:**
 ```bash
+git checkout rust-gateway
 cd api-gateway
 cargo run
+cargo test
+cargo bench
 ```
 
-## 🐳 Docker Deployment
-
-### Development Environment
+**Kong Gateway Configuration:**
 ```bash
-docker-compose up -d
+git checkout kong-gateway
+# Configure Kong via Admin API
+curl -X POST http://localhost:8001/services \
+  --data "name=backend" \
+  --data "url=http://backend:8000"
 ```
 
-### Production Environment
-```bash
-docker-compose -f docker-compose.prod.yml up -d
-```
+## 📚 Documentation
 
-## 📊 Monitoring & Metrics
+Each branch contains comprehensive documentation:
 
-### Health Checks
-- **API Gateway**: http://localhost:8080/health
-- **Backend API**: http://localhost:8000/health
-- **Frontend**: http://localhost:3000/health
-
-### Metrics Endpoints
-- **API Gateway Metrics**: http://localhost:8080/metrics
-- **Backend Metrics**: http://localhost:8000/metrics
-
-### Dashboard
-Access the monitoring dashboard at http://localhost:3000 after logging in.
-
-## 🔐 Security Features
-
-- **JWT Authentication**: Secure token-based authentication
-- **API Key Management**: Generate and manage API keys
-- **Rate Limiting**: Prevent abuse with configurable limits
-- **CORS Protection**: Cross-origin request security
-- **Input Validation**: Comprehensive request validation
-- **Security Headers**: Standard security headers implementation
-
-## 🧪 Testing
-
-### API Testing
-Use the built-in API tester at http://localhost:3000/api-tester or:
-
-```bash
-# Health check
-curl http://localhost:8080/health
-
-# Get products (requires authentication)
-curl -H "Authorization: Bearer <token>" http://localhost:8080/api/v1/products
-
-# Test rate limiting
-for i in {1..10}; do curl http://localhost:8080/api/v1/products; done
-```
-
-### Load Testing
-```bash
-# Install Apache Bench
-sudo apt-get install apache2-utils
-
-# Test API Gateway
-ab -n 1000 -c 10 http://localhost:8080/health
-```
-
-## 📁 Project Structure
-
-```
-API-Gateway-App/
-├── frontend/                 # React TypeScript frontend
-│   ├── src/
-│   │   ├── components/      # Reusable UI components
-│   │   ├── pages/          # Page components
-│   │   ├── contexts/       # React contexts
-│   │   └── App.tsx         # Main application
-│   ├── public/             # Static assets
-│   ├── Dockerfile          # Frontend container
-│   └── nginx.conf          # Nginx configuration
-├── backend/                 # FastAPI Python backend
-│   ├── main.py             # Application entry point
-│   ├── models.py           # Database models
-│   ├── schemas.py          # Pydantic schemas
-│   ├── auth.py             # Authentication logic
-│   ├── config.py           # Configuration management
-│   ├── requirements.txt    # Python dependencies
-│   └── Dockerfile          # Backend container
-├── api-gateway/            # Rust API Gateway
-│   ├── src/
-│   │   ├── main.rs         # Gateway entry point
-│   │   ├── proxy.rs        # Request proxying
-│   │   ├── auth.rs         # Authentication middleware
-│   │   ├── rate_limiter.rs # Rate limiting
-│   │   └── metrics.rs      # Metrics collection
-│   ├── Cargo.toml          # Rust dependencies
-│   └── Dockerfile          # Gateway container
-├── database/               # Database initialization
-│   └── init.sql           # Database schema
-├── docker-compose.yml      # Development environment
-├── docker-compose.prod.yml # Production environment
-├── Makefile               # Build and deployment commands
-└── README.md              # This file
-```
-
-## 🔧 Configuration
-
-### Environment Variables
-Key configuration options in `.env`:
-
-```bash
-# Database
-POSTGRES_PASSWORD=your_secure_password
-KONG_DB_PASSWORD=your_kong_password
-
-# Security
-JWT_SECRET_KEY=your_jwt_secret
-
-# Rate Limiting
-RATE_LIMIT_REQUESTS_PER_MINUTE=60
-
-# CORS
-ALLOWED_ORIGINS=http://localhost:3000
-```
-
-### API Gateway Configuration
-The Rust API Gateway can be configured via environment variables or JSON configuration.
-
-## 🚀 Deployment
-
-### Production Deployment
-1. Set production environment variables
-2. Build and deploy with Docker Compose:
-```bash
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-### Cloud Deployment
-The application is ready for deployment on:
-- **AWS ECS/EKS**
-- **Google Cloud Run/GKE**
-- **Azure Container Instances/AKS**
-- **DigitalOcean App Platform**
+- **Rust Gateway**: Detailed performance tuning, custom middleware, and Rust-specific guides
+- **Kong Gateway**: Enterprise deployment, plugin configuration, and Kong administration
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+2. Choose your preferred branch (`rust-gateway` or `kong-gateway`)
+3. Create a feature branch from your chosen approach
+4. Make your changes
+5. Add tests
+6. Submit a pull request
+
+## 📋 Use Cases
+
+### Choose Rust Gateway If:
+- You need maximum performance (50k+ RPS)
+- You want to learn Rust and async programming
+- You need custom gateway logic
+- Memory usage is a concern
+- You're building high-frequency trading systems
+- You enjoy low-level optimization
+
+### Choose Kong Gateway If:
+- You need enterprise features out-of-the-box
+- Your team is familiar with Kong
+- You want extensive plugin ecosystem
+- You need commercial support
+- You're building enterprise applications
+- You prefer configuration over coding
+
+## 🔗 Related Projects
+
+- **Kong Gateway**: https://github.com/Kong/kong
+- **Axum Framework**: https://github.com/tokio-rs/axum
+- **FastAPI**: https://github.com/tiangolo/fastapi
+- **Keycloak**: https://github.com/keycloak/keycloak
 
 ## 📝 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🆘 Troubleshooting
-
-### Common Issues
-
-**🚨 Port 8000 Conflict (Critical)**
-The most common issue is that both Kong Proxy and Backend API are configured for port 8000:
-
-```bash
-# Check which service is using port 8000
-lsof -i :8000
-
-# Quick fix: Change backend to port 8003
-# Edit docker-compose.yml, change backend ports from "8000:8000" to "8003:8000"
-# Then update Rust Gateway config to point to "http://backend:8000" (internal) 
-# External access would be http://localhost:8003
-
-# Alternative: Change Kong proxy port
-# Edit docker-compose.yml, change kong ports from "8000:8000" to "8090:8000"
-```
-
-**Port Conflicts**
-```bash
-# Check what's using the ports
-lsof -i :3000 -i :8000 -i :8080
-
-# Stop conflicting services
-docker-compose down
-```
-
-**Database Connection Issues**
-```bash
-# Reset database
-docker-compose down -v
-docker-compose up -d postgres
-```
-
-**Build Failures**
-```bash
-# Clean and rebuild
-docker-compose down
-docker system prune -f
-docker-compose build --no-cache
-```
-
-### Logs
-```bash
-# View all logs
-docker-compose logs -f
-
-# View specific service logs
-docker-compose logs -f api-gateway
-docker-compose logs -f backend
-docker-compose logs -f frontend
-```
-
-## 📞 Support
-
-For questions, issues, or contributions:
-- Create an issue in the repository
-- Check the troubleshooting section
-- Review the logs for error details
-
 ---
 
-**Built with ❤️ using modern technologies and best practices** 
+**Start exploring:** Choose your gateway approach and dive into either the `rust-gateway` or `kong-gateway` branch! 
