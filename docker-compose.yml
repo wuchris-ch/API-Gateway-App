@@ -58,7 +58,7 @@ services:
         condition: service_healthy
     restart: on-failure
 
-  # Kong Gateway
+  # Kong Gateway (Primary API Gateway)
   kong:
     image: kong:3.9.0
     container_name: kong_gateway
@@ -75,7 +75,7 @@ services:
       KONG_ADMIN_LISTEN: 0.0.0.0:8001
       KONG_ADMIN_GUI_URL: http://localhost:8002
     ports:
-      - "8000:8000"  # Kong Proxy
+      - "8080:8000"  # Kong Proxy (Main Gateway Port)
       - "8443:8443"  # Kong Proxy SSL
       - "8001:8001"  # Kong Admin API
       - "8444:8444"  # Kong Admin API SSL
@@ -149,7 +149,7 @@ services:
       REDIS_URL: redis://redis:6379
       SECRET_KEY: ${JWT_SECRET_KEY:-your-dev-secret-key}
     ports:
-      - "8000:8000"
+      - "8000:8000"  # Backend runs on 8000, Kong proxies on 8080
     networks:
       - api_gateway_network
     depends_on:
@@ -160,86 +160,6 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # API Gateway (Rust)
-  api-gateway:
-    build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
-    container_name: api_gateway_rust
-    environment:
-      GATEWAY_CONFIG: |
-        {
-          "server": {
-            "host": "0.0.0.0",
-            "port": 8080
-          },
-          "routes": [
-            {
-              "path": "/api/v1/*",
-              "method": null,
-              "backend": "backend_api",
-              "load_balancing": "round_robin",
-              "rate_limit": 100,
-              "auth_required": true,
-              "timeout_ms": 30000
-            }
-          ],
-          "backends": {
-            "backend_api": {
-              "name": "Backend API",
-              "servers": ["http://backend:8000"],
-              "health_check": {
-                "enabled": true,
-                "path": "/health",
-                "interval_seconds": 30,
-                "timeout_seconds": 5,
-                "healthy_threshold": 2,
-                "unhealthy_threshold": 3
-              },
-              "circuit_breaker": {
-                "enabled": true,
-                "failure_threshold": 5,
-                "recovery_timeout_seconds": 60
-              }
-            }
-          },
-          "rate_limiting": {
-            "enabled": true,
-            "default_requests_per_minute": 60,
-            "burst_size": 10,
-            "storage": "redis"
-          },
-          "auth": {
-            "enabled": true,
-            "jwt_secret": "your-jwt-secret-key",
-            "api_key_header": "X-API-Key",
-            "bypass_paths": ["/health", "/metrics", "/auth/login", "/public/*"]
-          },
-          "redis": {
-            "url": "redis://redis:6379",
-            "pool_size": 10
-          },
-          "database": {
-            "url": "postgresql://postgres:postgres@postgres:5432/api_gateway",
-            "max_connections": 10
-          }
-        }
-    ports:
-      - "8080:8080"
-    networks:
-      - api_gateway_network
-    depends_on:
-      backend:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -255,7 +175,7 @@ services:
     networks:
       - api_gateway_network
     depends_on:
-      - api-gateway
+      - kong
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80"]
